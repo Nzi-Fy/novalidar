@@ -1,0 +1,132 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LIDAR Map Builder</title>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      background: linear-gradient(135deg, #0a0a1a, #1a1a2e);
+      color: #e0e0ff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      color: #4fc3f7;
+    }
+
+    #mapCanvas {
+      background: #12122a;
+      border: 2px solid #4fc3f7;
+      border-radius: 12px;
+      box-shadow: 0 0 15px rgba(79, 195, 247, 0.4);
+      margin-top: 20px;
+    }
+
+    .footer {
+      margin-top: auto;
+      font-size: 0.9rem;
+      color: #888;
+      padding: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>LIDAR 2D Map Viewer</h1>
+  <canvas id="mapCanvas" width="800" height="800"></canvas>
+  <div class="footer">&copy; 2025 Astronaut Assistant | LIDAR Mapping Dashboard</div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBStapts8pxhkqWt1WWzao14c4Mp5aC7Ns",
+      authDomain: "astronaut-assistant.firebaseapp.com",
+      databaseURL: "https://astronaut-assistant-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "astronaut-assistant",
+      storageBucket: "astronaut-assistant.firebasestorage.app",
+      messagingSenderId: "100773028427",
+      appId: "1:100773028427:web:02c370e25e24f7abcea3ce",
+      measurementId: "G-ZQ96W43NMY"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const ctx = document.getElementById('mapCanvas').getContext('2d');
+    const mapChart = new Chart(ctx, {
+      type: 'scatter',
+      data: {
+        datasets: [{
+          label: 'LIDAR Map Points',
+          data: [],
+          pointBackgroundColor: '#4fc3f7',
+          pointRadius: 2,
+          showLine: false
+        }]
+      },
+      options: {
+        responsive: false,
+        scales: {
+          x: {
+            min: -4000,
+            max: 4000,
+            ticks: { color: '#ccc' },
+            grid: { color: '#2a2a3a' }
+          },
+          y: {
+            min: -4000,
+            max: 4000,
+            ticks: { color: '#ccc' },
+            grid: { color: '#2a2a3a' }
+          }
+        },
+        plugins: {
+          legend: { display: false }
+        },
+        animation: false
+      }
+    });
+
+    function polarToCartesian(angleDeg, distance) {
+      const angleRad = (angleDeg * Math.PI) / 180;
+      const x = distance * Math.cos(angleRad);
+      const y = distance * Math.sin(angleRad);
+      return { x, y };
+    }
+
+    function buildMap(data) {
+      const points = [];
+      for (const timestamp in data) {
+        const scan = data[timestamp].scan_data;
+        for (const angle in scan) {
+          const distance = parseInt(scan[angle]);
+          const { x, y } = polarToCartesian(parseInt(angle), distance);
+          points.push({ x, y });
+        }
+      }
+      mapChart.data.datasets[0].data = points;
+      mapChart.update();
+    }
+
+    db.ref('/lidar').limitToLast(50).on('value', (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        buildMap(data);
+      }
+    });
+  </script>
+</body>
+</html>
